@@ -1,0 +1,195 @@
+
+<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?key=AIzaSyD3ceG_0jIxR5ipWvM053T8yrMlTLCK7nY&sensor=false">
+</script>
+
+
+<form class="form-horizontal">
+  <div class="form-group">
+    <label for="columnLabel" class="col-sm-2 control-label">住所項目名</label>
+    <div class="col-sm-10">
+      <input type="text" class="form-control" id="columnLabel" placeholder="住所項目名" value="住所">
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="fileEncoding" class="col-sm-2 control-label">エンコーディング</label>
+    <div class="col-sm-10">
+      <select class="form-control" id="fileEncoding">
+      <option value="UTF-8">UTF-8</option>
+      <option value="Shift_JIS">Shift_JIS</option>
+    </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="radius" class="col-sm-2 control-label">半径</label>
+    <div class="col-sm-10">
+      <input type="text" class="form-control" id="radius" placeholder="半径" value="1000">
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="fillColor" class="col-sm-2 control-label">塗りの色</label>
+    <div class="col-sm-10">
+      <input type="text" class="form-control" id="fillColor" placeholder="塗りの色" value="#ff0000">
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="fillOpacity" class="col-sm-2 control-label">塗りの透明度</label>
+    <div class="col-sm-10">
+      <input type="text" class="form-control" id="fillOpacity" placeholder="塗りの透明度" value="0.1">
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="strokeWeight" class="col-sm-2 control-label">線の幅</label>
+    <div class="col-sm-10">
+      <input type="text" class="form-control" id="strokeWeight" placeholder="線の幅" value="1">
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="strokeColor" class="col-sm-2 control-label">線の色</label>
+    <div class="col-sm-10">
+      <input type="text" class="form-control" id="strokeColor" placeholder="線の色" value="#ff0000">
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="strokeColor" class="col-sm-2 control-label">線の透明度</label>
+    <div class="col-sm-10">
+      <input type="text" class="form-control" id="strokeColor" placeholder="線の透明度" value="0.5">
+    </div>
+  </div>
+</form>
+
+<div id="dropArea" style="width:100%;height:80px;line-height:80px;margin: 10px 0;font-size: 30px; color:#999; text-align:center; border: 3px #ccc dashed; user-select: none;-webkit-user-select: none;-moz-user-select: none;-ms-user-select: none;-o-user-select: none;">Drop CSV here</div>
+
+<form class="form-inline" style="margin: 10px;text-align:right;">
+  <div class="form-group">
+    <label for="query" class="sr-only">住所</label>
+    <input type="text" class="form-control" id="query" style="width: 400px" placeholder="住所">
+  </div>
+  <button id="moveToAddress" class="btn btn-default">移動</button>
+  <button id="submitAddress" class="btn btn-default">住所入力</button>
+  <button id="clear" class="btn btn-default">描画クリア</button>
+</form>
+
+<div style="width:100%;height:600px;">
+  <div id="map_canvas" style="width:100%; height:100%">
+  </div>
+</div>
+
+</textarea>
+
+<script>
+
+  jQuery(function($){
+    // ws-rails
+    var ws_rails = new WebSocketRails("192.168.56.20:3000/websocket");
+    ws_rails.bind("coordinates", function(message){
+      drawPoint(message.latitude, message.longitude);
+    })
+    
+    function queryCoordinates(options) {
+      ws_rails.trigger("coordinates", options);
+    }
+
+    // googlemap
+    var mapOptions = {
+      center: new google.maps.LatLng(34.686316,135.519711),
+      zoom: 10,
+      mapTypeId: google.maps.MapTypeId.ROADMAP
+    };
+    var map = new google.maps.Map(document.getElementById("map_canvas"), mapOptions);
+    var geocoder = new google.maps.Geocoder();
+
+    function circleOptions(lat, lng) {
+      return {
+          center:        new google.maps.LatLng(lat, lng),
+          radius:        Number($('#radius').val()), 
+          strokeWeight:  Number($('#strokeWeight').val()),
+          strokeColor:   $('#strokeColor').val(), 
+          strokeOpacity: Number($('#strokeOpacity').val()), 
+          fillColor:     $('#fillColor').val(), 
+          fillOpacity:   Number($('#fillOpacity').val())
+      };
+    }
+    
+    function drawPoint(lat, lng) {
+      new google.maps.Circle(circleOptions(lat, lng)).setMap(map); 
+    }
+
+    //map control
+    $('#moveToAddress').click(function(event){
+      event.stopPropagation();
+      event.preventDefault();
+      geocoder.geocode( { 'address': $('#query').val()}, function(results, status) {
+        if (status == google.maps.GeocoderStatus.OK) {
+          map.setCenter(results[0].geometry.location);
+        } else {
+          alert("Geocode was not successful for the following reason: " + status );
+        }
+      });
+    });
+
+    $('#submitAddress').click(function(event){
+      event.stopPropagation();
+      event.preventDefault();
+      queryCoordinates({id: null, query: $('#query').val()});
+    });
+    
+
+    $('#clear').click(function(event){
+      event.stopPropagation();
+      event.preventDefault();
+      location.reload();
+    });
+
+    // drop csv file
+    $('#dropArea').on("drop",function(event){
+      event.stopPropagation();
+      event.preventDefault();
+      var files = event.originalEvent.dataTransfer.files;
+      if (files.length == 0) {
+        alert('ファイルを選択してください');
+        return;
+      }
+      if (files.length > 1) {
+        alert('ファイルは1つだけ選択してください');
+        return;
+      }
+      
+      var rowId = 0;
+      var addrNo = null;
+      var csvConfig = {
+        delimiter: ',',
+        encoding: $('#fileEncoding').val(),
+        header: false,
+        step: function(results, handle) {
+          var row = results.data[0];
+          if (rowId == 0) {
+            for (var i=0,l=row.length;i<l;i++) {
+              if (row[i] == $('#columnLabel').val()) {
+                addrNo = i;
+              }
+            }
+            console.log(addrNo);
+            if (addrNo == null) {
+              handle.abort();
+              alert("指定された項目「" + $('#columnLabel').val() + "」が見つかりませんでした");
+            }
+          } else {
+            var addr = row[addrNo];
+            if (addr) {
+              queryCoordinates({id: rowId, query: addr});
+            }
+          }
+          rowId++;
+        }
+      }
+      Papa.parse(files[0], csvConfig);
+    });
+    $('#dropArea').on("dragover",function(event){
+      event.stopPropagation();
+      event.preventDefault();
+    });
+  });
+
+</script>
+
+<br />
