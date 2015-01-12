@@ -1,0 +1,12 @@
+defaults: &defaults
+  google_maps:
+    api_key: <%= ENV['GEO_PLOT_GOOGLE_MAPS_API_KEY']%>
+
+development:
+  <<: *defaults
+
+test:
+  <<: *defaults
+
+production:
+  <<: *defaults
