@@ -80,7 +80,7 @@
 
   jQuery(function($){
     // ws-rails
-    var ws_rails = new WebSocketRails("192.168.56.20:3000/websocket");
+    var ws_rails = new WebSocketRails("<%= request.host %>:<%= request.port %>/websocket");
     ws_rails.bind("coordinates", function(message){
       drawPoint(message.latitude, message.longitude);
     })
